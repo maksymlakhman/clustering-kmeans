@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-means Кластеризація | Лахман Максим</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.8.0/recharts.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        function App() {
+            const [activeFile, setActiveFile] = React.useState('2clusters');
+            const [downloadStatus, setDownloadStatus] = React.useState('');
+
+            const data2Clusters = [
+                { object: 'A', x: 13, y: 4, cluster: 1, centerX: 5.8, centerY: 10.0 },
+                { object: 'B', x: 16, y: 12, cluster: 2, centerX: 13.6, centerY: 15.4 },
+                { object: 'C', x: 10, y: 3, cluster: 1, centerX: 5.8, centerY: 10.0 },
+                { object: 'D', x: 10, y: 13, cluster: 2, centerX: 13.6, centerY: 15.4 },
+                { object: 'E', x: 1, y: 15, cluster: 1, centerX: 5.8, centerY: 10.0 },
+                { object: 'F', x: 7, y: 20, cluster: 2, centerX: 13.6, centerY: 15.4 },
+                { object: 'G', x: 2, y: 9, cluster: 1, centerX: 5.8, centerY: 10.0 },
+                { object: 'H', x: 19, y: 15, cluster: 2, centerX: 13.6, centerY: 15.4 },
+                { object: 'I', x: 16, y: 17, cluster: 2, centerX: 13.6, centerY: 15.4 },
+                { object: 'J', x: 3, y: 19, cluster: 1, centerX: 5.8, centerY: 10.0 }
+            ];
+
+            const data3Clusters = [
+                { object: 'A', x: 13, y: 4, cluster: 1, centerX: 14.8, centerY: 10.2 },
+                { object: 'B', x: 16, y: 12, cluster: 1, centerX: 14.8, centerY: 10.2 },
+                { object: 'C', x: 10, y: 3, cluster: 1, centerX: 14.8, centerY: 10.2 },
+                { object: 'D', x: 10, y: 13, cluster: 2, centerX: 5.5, centerY: 15.25 },
+                { object: 'E', x: 1, y: 15, cluster: 3, centerX: 1.0, centerY: 15.0 },
+                { object: 'F', x: 7, y: 20, cluster: 2, centerX: 5.5, centerY: 15.25 },
+                { object: 'G', x: 2, y: 9, cluster: 2, centerX: 5.5, centerY: 15.25 },
+                { object: 'H', x: 19, y: 15, cluster: 1, centerX: 14.8, centerY: 10.2 },
+                { object: 'I', x: 16, y: 17, cluster: 1, centerX: 14.8, centerY: 10.2 },
+                { object: 'J', x: 3, y: 19, cluster: 2, centerX: 5.5, centerY: 15.25 }
+            ];
+
+            const currentData = activeFile === '2clusters' ? data2Clusters : data3Clusters;
+            const currentFilename = activeFile === '2clusters' 
+                ? 'Clustering(Лахман)-2 clusters.xls'
+                : 'Clustering(Лахман)-3 clusters.xls';
+
+            const downloadExcel = () => {
+                let csvContent = 'Об\'єкт\tX\tY\tКластер\tЦентр Кластера X\tЦентр Кластера Y\n';
+                
+                currentData.forEach(row => {
+                    csvContent += `${row.object}\t${row.x}\t${row.y}\t${row.cluster}\t${row.centerX}\t${row.centerY}\n`;
+                });
+
+                const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', currentFilename);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                setDownloadStatus(`✅ ${currentFilename} завантажено!`);
+                setTimeout(() => setDownloadStatus(''), 3000);
+            };
+
+            const clusterInfo = {
+                '2clusters': {
+                    title: '2 Кластери',
+                    clusters: [
+                        { num: 1, objects: 'A, C, E, G, J', centerX: 5.8, centerY: 10.0 },
+                        { num: 2, objects: 'B, D, F, H, I', centerX: 13.6, centerY: 15.4 }
+                    ],
+                    color: 'from-blue-500 to-blue-600'
+                },
+                '3clusters': {
+                    title: '3 Кластери',
+                    clusters: [
+                        { num: 1, objects: 'A, B, C, H, I', centerX: 14.8, centerY: 10.2 },
+                        { num: 2, objects: 'D, F, G, J', centerX: 5.5, centerY: 15.25 },
+                        { num: 3, objects: 'E', centerX: 1.0, centerY: 15.0 }
+                    ],
+                    color: 'from-red-500 to-red-600'
+                }
+            };
+
+            const info = clusterInfo[activeFile];
+
+            return (
+                <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
+                    <div className="max-w-5xl mx-auto">
+                        <h1 className="text-4xl font-bold text-white mb-2">📊 K-means Clustering Files</h1>
+                        <p className="text-slate-300 mb-8">Студент: Лахман Максим | Група: 4М | Варіант: 11</p>
+
+                        {downloadStatus && (
+                            <div className="mb-6 p-4 bg-green-500/20 border border-green-500 text-green-300 rounded-lg">
+                                {downloadStatus}
+                            </div>
+                        )}
+
+                        <div className="flex gap-4 mb-8">
+                            <button
+                                onClick={() => setActiveFile('2clusters')}
+                                className={`px-8 py-4 rounded-lg font-bold text-lg transition transform hover:scale-105 ${
+                                    activeFile === '2clusters'
+                                        ? 'bg-blue-500 text-white shadow-lg'
+                                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                }`}
+                            >
+                                📁 2 Кластери
+                            </button>
+                            <button
+                                onClick={() => setActiveFile('3clusters')}
+                                className={`px-8 py-4 rounded-lg font-bold text-lg transition transform hover:scale-105 ${
+                                    activeFile === '3clusters'
+                                        ? 'bg-red-500 text-white shadow-lg'
+                                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                }`}
+                            >
+                                📁 3 Кластери
+                            </button>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow-2xl overflow-hidden mb-8">
+                            <div className={`bg-gradient-to-r ${info.color} p-8`}>
+                                <h2 className="text-3xl font-bold text-white mb-2">{info.title}</h2>
+                                <p className="text-white/90">k = {info.clusters.length}</p>
+                            </div>
+
+                            <div className="p-8">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                    {info.clusters.map((cluster, idx) => (
+                                        <div key={idx} className="bg-slate-50 p-6 rounded-lg border-l-4 border-slate-300">
+                                            <p className="text-sm font-semibold text-slate-600 mb-2">КЛАСТЕР {cluster.num}</p>
+                                            <div className="space-y-2">
+                                                <div>
+                                                    <p className="text-xs text-slate-500">Об'єкти:</p>
+                                                    <p className="font-bold text-gray-800">{cluster.objects}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-slate-500">Центр:</p>
+                                                    <p className="font-mono text-gray-800">({cluster.centerX}, {cluster.centerY})</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={downloadExcel}
+                                    className={`w-full py-4 px-6 rounded-lg font-bold text-white text-lg transition transform hover:scale-105 ${
+                                        activeFile === '2clusters'
+                                            ? 'bg-blue-500 hover:bg-blue-600'
+                                            : 'bg-red-500 hover:bg-red-600'
+                                    }`}
+                                >
+                                    ⬇️ Завантажити {activeFile === '2clusters' ? '2 clusters' : '3 clusters'}.xls
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow-xl p-8">
+                            <h3 className="text-2xl font-bold text-gray-800 mb-6">📋 Дані для завантаження</h3>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-100">
+                                        <tr>
+                                            <th className="p-4 text-left font-bold">Об'єкт</th>
+                                            <th className="p-4 text-center font-bold">X</th>
+                                            <th className="p-4 text-center font-bold">Y</th>
+                                            <th className="p-4 text-center font-bold">Кластер</th>
+                                            <th className="p-4 text-center font-bold">Центр X</th>
+                                            <th className="p-4 text-center font-bold">Центр Y</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {currentData.map((row, idx) => (
+                                            <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                                <td className="p-4 font-bold">{row.object}</td>
+                                                <td className="p-4 text-center">{row.x}</td>
+                                                <td className="p-4 text-center">{row.y}</td>
+                                                <td className="p-4 text-center">
+                                                    <span className={`px-3 py-1 rounded-full font-bold text-white text-sm ${
+                                                        activeFile === '2clusters'
+                                                            ? row.cluster === 1 ? 'bg-blue-500' : 'bg-red-500'
+                                                            : row.cluster === 1 ? 'bg-blue-500' : row.cluster === 2 ? 'bg-red-500' : 'bg-green-500'
+                                                    }`}>
+                                                        {row.cluster}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-center">{row.centerX}</td>
+                                                <td className="p-4 text-center">{row.centerY}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
